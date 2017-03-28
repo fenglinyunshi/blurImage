@@ -28,7 +28,7 @@
     /*
      *实现毛玻璃效果的两种方式
      */
-//    [self toolbarStyle];
+    [self toolbarStyle];
     
 //    [self uivisualEffectViewStyle];
     
@@ -40,7 +40,7 @@
 
 //    self.myImageView.image = [self GPUImageStyleWithImage:image];
     
-    self.myImageView.image = [self boxblurImage:image withBlurNumber:5];
+//    self.myImageView.image = [self boxblurImage:image withBlurNumber:5];
     
 }
 
@@ -63,16 +63,17 @@
 #pragma mark 在iOS 8之后苹果新增加了一个类UIVisualEffectView，通过这个类来实现毛玻璃效果
 - (void)uivisualEffectViewStyle{
     /* NS_ENUM_AVAILABLE_IOS(8_0)
-     * UIBlurEffectStyleExtraLight,
-     * UIBlurEffectStyleLight,
-     * UIBlurEffectStyleDark,
+     * UIBlurEffectStyleExtraLight,//额外亮度，（高亮风格）
+     * UIBlurEffectStyleLight,//亮风格
+     * UIBlurEffectStyleDark,//暗风格
      * UIBlurEffectStyleExtraDark __TVOS_AVAILABLE(10_0) __IOS_PROHIBITED __WATCHOS_PROHIBITED,
      * UIBlurEffectStyleRegular NS_ENUM_AVAILABLE_IOS(10_0), // Adapts to user interface style
      * UIBlurEffectStyleProminent NS_ENUM_AVAILABLE_IOS(10_0), // Adapts to user interface style
      
      */
-    
+    //实现模糊效果
     UIBlurEffect *effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+    //毛玻璃视图
     UIVisualEffectView *effectView = [[UIVisualEffectView alloc] initWithEffect:effect];;
     effectView.frame = CGRectMake(0, 0, ScreenW/2, ScreenH);
     
@@ -100,10 +101,12 @@
 
 #pragma mark GPUImage的开源库实现毛玻璃效果(比较吃内存,相对Core Image好一点)
 - (UIImage *)GPUImageStyleWithImage:(UIImage *)image{
+    
     GPUImageGaussianBlurFilter *filter = [[GPUImageGaussianBlurFilter alloc] init];
     filter.blurRadiusInPixels = 10.0;//值越大，模糊度越大
     UIImage *blurImage = [filter imageByFilteringImage:image];
     return blurImage;
+    
 }
 
 #pragma mark vImage属于Accelerate.Framework，需要导入 Accelerate下的 Accelerate头文件， Accelerate主要是用来做数字信号处理、图像处理相关的向量、矩阵运算的库。图像可以认为是由向量或者矩阵数据构成的，Accelerate里既然提供了高效的数学运算API，自然就能方便我们对图像做各种各样的处理 ，模糊算法使用的是vImageBoxConvolve_ARGB8888这个函数。
@@ -112,15 +115,18 @@
     if (blur < 0.f || blur > 1.f) {
         blur = 0.5f;
     }
+    
     int boxSize = (int)(blur * 40);
     boxSize = boxSize - (boxSize % 2) + 1;
     CGImageRef img = image.CGImage;
     vImage_Buffer inBuffer, outBuffer;
     vImage_Error error;
     void *pixelBuffer;
+    
     //从CGImage中获取数据
     CGDataProviderRef inProvider = CGImageGetDataProvider(img);
     CFDataRef inBitmapData = CGDataProviderCopyData(inProvider);
+    
     //设置从CGImage获取对象的属性
     inBuffer.width = CGImageGetWidth(img);
     inBuffer.height = CGImageGetHeight(img);
@@ -134,20 +140,22 @@
     outBuffer.height = CGImageGetHeight(img);
     outBuffer.rowBytes = CGImageGetBytesPerRow(img);
     error = vImageBoxConvolve_ARGB8888(&inBuffer, &outBuffer, NULL, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
-    if (error) {
+    if(error){
         NSLog(@"error from convolution %ld", error);
     }
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGContextRef ctx = CGBitmapContextCreate( outBuffer.data, outBuffer.width, outBuffer.height, 8, outBuffer.rowBytes, colorSpace, kCGImageAlphaNoneSkipLast);
-    CGImageRef imageRef = CGBitmapContextCreateImage (ctx);
+    CGImageRef imageRef = CGBitmapContextCreateImage(ctx);
     UIImage *returnImage = [UIImage imageWithCGImage:imageRef];
-    //clean up CGContextRelease(ctx);
+    
+    //clean up CGContextRelease(ctx)
     CGColorSpaceRelease(colorSpace);
     free(pixelBuffer);
     CFRelease(inBitmapData);
     CGColorSpaceRelease(colorSpace);
     CGImageRelease(imageRef);
     return returnImage;
+    
 }
 
 
